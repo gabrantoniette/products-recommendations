@@ -1,5 +1,10 @@
 # E-commerce Recommendation System
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/gabrantoniette/gabrantoniette/main/assets/generated/languages/products-recommendations-dark.svg">
+  <img src="https://raw.githubusercontent.com/gabrantoniette/gabrantoniette/main/assets/generated/languages/products-recommendations-light.svg" alt="Languages in products-recommendations, by share of code">
+</picture>
+
 A web application that displays user profiles and product listings, with the ability to track user purchases for future machine learning recommendations using TensorFlow.js.
 
 > **Work in progress.** This is a personal study project and is not production-ready.
