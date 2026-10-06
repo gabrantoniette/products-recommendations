@@ -1,6 +1,7 @@
 {
     "name": "ecommerce-recomendations-with-ml",
     "version": "1.0.0",
+    "private": true,
     "description": "An e-commerce recommendation system with TensorFlow.js",
     "main": "index.js",
     "type": "module",
@@ -14,8 +15,8 @@
         "recommendation",
         "javascript"
     ],
-    "author": "",
-    "license": "ISC",
+    "author": "Gabriel Antoniette",
+    "license": "SEE LICENSE IN LICENSE.md",
     "devDependencies": {
         "browser-sync": "^3.0.4"
     }
