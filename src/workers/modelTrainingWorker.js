@@ -2,7 +2,9 @@ import 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js';
 import { workerEvents } from '../events/constants.js';
 
 console.log('Model training worker initialized');
+
 let _globalCtx = {};
+let _model = null;
 
 const WEIGHTS = {
     age: 0.1,
@@ -13,9 +15,9 @@ const WEIGHTS = {
 
 const normalize = (value, min, max) => (value - min) / (max - min);
 
-async function makeContext(catalog, users) {
+async function makeContext(products, users) {
     const ages = users.map(u => u.age);
-    const price = catalog.map(p => p.price);
+    const price = products.map(p => p.price);
 
     const minAge = Math.min(...ages);
     const maxAge = Math.max(...ages);
@@ -23,8 +25,8 @@ async function makeContext(catalog, users) {
     const minPrice = Math.min(...price);
     const maxPrice = Math.max(...price);
 
-    const colors = [... new Set(catalog.map(c => c.color))];
-    const categories = [... new Set(catalog.map(c => c.category))];
+    const colors = [... new Set(products.map(c => c.color))];
+    const categories = [... new Set(products.map(c => c.category))];
 
     const colorIndex = Object.fromEntries(
         colors.map((color, index) => {
@@ -51,7 +53,7 @@ async function makeContext(catalog, users) {
     });
     
     const productAvgAgeNorm = Object.fromEntries(
-        catalog.map(product => {
+        products.map(product => {
             const avg = ageCounts[product.name] ?
             ageSums[product.name] / ageCounts[product.name] :
             ageAvg
@@ -61,7 +63,7 @@ async function makeContext(catalog, users) {
     )
     
     return {
-        catalog,
+        products,
         users,
         colorIndex,
         categoriesIndex,
@@ -111,50 +113,188 @@ function encodeProduct(product, context) {
 
 }
 
+
+function encodeUser(user, context) {
+    if(user.purchases.length) {
+        return tf.stack(user.purchases.map(
+            product => encodeProduct(product, context)
+            )
+        )
+        .mean(0)
+        .reshape([1, context.dimentions])
+    }
+    
+    return tf.concat1d([
+        tf.zeros([1]), //price ignored for users, as we don't have a specific product to reference
+        tf.tensor1d([
+            normalize(
+                user.age,
+                context.minAge,
+                context.maxAge
+            ) * WEIGHTS.age
+        ]),
+        tf.zeros([context.numCategories]), //category ignored for users
+        tf.zeros([context.NumColors])      //color ignored for users
+    ])
+    .reshape([1, context.dimentions])
+}
+
+
+function createTrainingData(context) {
+    const inputs = []
+    const labels = []
+    context.users
+        .filter(u => u.purchases.length) //only consider users with purchases
+        .forEach(user => {
+            const userVector = encodeUser(user, context).dataSync()
+            context.products.forEach(product => {
+                const productVector = encodeProduct(product, context).dataSync()
+
+                const label = user.purchases.some(
+                    purchase => purchase.name === product.name
+                ) ? 1:0
+                inputs.push([...userVector, ...productVector]) 
+                //combine user vector and product vector into a single input vector
+                labels.push(label)
+            })
+        })
+    
+    return {
+        xs: tf.tensor2d(inputs),
+        ys: tf.tensor2d(labels, [labels.length, 1]),
+        inputDimention: context.dimentions * 2 //size of user vector + size of product vector
+    }
+}
+
+
+async function configureNeuralNetandTrain(trainData) {
+
+    const model = tf.sequential()
+
+    model.add(
+        tf.layers.dense({
+            inputShape: [trainData.inputDimention],
+            units: 128,
+            activation: 'relu'
+        })
+    )
+
+    model.add(
+        tf.layers.dense({
+            units: 64,
+            activation: 'relu'
+        })
+    )  
+
+    model.add(
+        tf.layers.dense({
+            units: 32,
+            activation: 'relu'
+        })
+    )
+    //above: input and the following added layers are incremental for a better learning process, 
+    //allowing the model to capture more complex patterns in the data.
+
+    model.add(
+        tf.layers.dense({
+            units: 1,
+            activation: 'sigmoid' //compress the output to a range between 0 and 1, 
+                                  //which is suitable for binary classification tasks.
+                                  //0.9 is a strong recommendation, 0.1 is a weak recommendation.
+        })
+    )
+
+    model.compile({
+        optimizer: tf.train.adam(0.01),
+        loss: 'binaryCrossentropy',
+        metrics: ['accuracy']
+    })
+    
+    await model.fit(trainData.xs, trainData.ys, {
+        epochs: 100,
+        batchSize: 32,
+        shuffle: true,
+        callbacks: {
+            onEpochEnd: (epoch, logs) => {
+                postMessage({
+                    type: workerEvents.trainingLog,
+                    epoch: epoch,
+                    loss: logs.loss,
+                    accuracy: logs.acc
+                });
+            }
+        }
+    });
+
+    return model;
+
+}
+
+
 async function trainModel({ users }) {
     console.log('Training model with users:', users)
 
-    postMessage({ type: workerEvents.progressUpdate, progress: { progress: 50 } });
+    postMessage({ type: workerEvents.progressUpdate, progress: { progress: 1 } });
 
-    const catalog = await (await fetch('/data/products.json')).json()
+    const products = await (await fetch('/data/products.json')).json()
 
-    const context = await makeContext(catalog, users)
-    context.productVectors = catalog.map(product => {
+    const context = await makeContext(products, users)
+    context.productVectors = products.map(product => {
         return {
             name: product.name,
             meta: {...product},
             vector: encodeProduct(product, context).dataSync()
         }
     })
-    debugger;
+    
     _globalCtx = context;
-    postMessage({
-        type: workerEvents.trainingLog,
-        epoch: 1,
-        loss: 1,
-        accuracy: 1
-    });
+    
+    const trainData = createTrainingData(context)
+    _model = await configureNeuralNetandTrain(trainData)
 
-    setTimeout(() => {
-        postMessage({ type: workerEvents.progressUpdate, progress: { progress: 100 } });
-        postMessage({ type: workerEvents.trainingComplete });
-    }, 1000);
+    
+    postMessage({ type: workerEvents.progressUpdate, progress: { progress: 100 } });
+    postMessage({ type: workerEvents.trainingComplete });
 
 
 }
-function recommend(user, ctx) {
-    console.log('will recommend for user:', user)
-    // postMessage({
-    //     type: workerEvents.recommend,
-    //     user,
-    //     recommendations: []
-    // });
+
+function recommend({ user }) {
+    
+    if(!_model) return;
+    const context = _globalCtx;
+
+    const userVector = encodeUser(user, _globalCtx).dataSync()
+    const inputs = context.productVectors.map(({vector}) => {
+        return [...userVector, ...vector]
+    })
+
+    const inputTensor = tf.tensor2d(inputs)
+    const predictions = _model.predict(inputTensor)
+
+    const scores = predictions.dataSync()
+    
+    const recommendations = context.productVectors.map((product, index) => {
+        return {
+            ...product.meta,
+            name: product.name,
+            score: scores[index] //prediction score for the product
+        }
+    })
+
+    const sortedProducts = recommendations.sort((a, b) => b.score - a.score)
+
+    postMessage({ 
+        type: workerEvents.recommend, 
+        user, 
+        recommendations: sortedProducts 
+    });
 }
 
 
 const handlers = {
     [workerEvents.trainModel]: trainModel,
-    [workerEvents.recommend]: d => recommend(d.user, _globalCtx),
+    [workerEvents.recommend]: recommend,
 };
 
 self.onmessage = e => {
