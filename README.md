@@ -52,19 +52,3 @@ npm start
 4. A dense neural network (128 → 64 → 32 → 1, sigmoid output) learns to predict that label with binary cross-entropy.
 5. To recommend, the model scores every product for the selected user and the list is sorted from highest to lowest score.
 
-## Credits and License
-
-This project is based on the
-[`exemplo-01-ecommerce-recomendations-template`](https://github.com/unipds-engenharia-de-ia-aplicada/engenharia-de-software-com-ia-aplicada/tree/main/modulo01-fundamentos-de-ia-e-llms-para-programadores/exemplo-01-ecommerce-recomendations-template)
-from the [Engenharia de Software com IA Aplicada](https://github.com/unipds-engenharia-de-ia-aplicada/engenharia-de-software-com-ia-aplicada)
-course by [Unipds Educação](https://unipds.com.br/org-pos-ia/), used for study purposes.
-
-Changes from the original template:
-
-- Fixed the `npm start` script so it runs on Windows and watches `src/`.
-- Added Subresource Integrity hashes to the CDN assets in `index.html`.
-- Implemented the recommendation model in `src/workers/modelTrainingWorker.js`, which the template left as a stub.
-
-The original material is licensed under
-[CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/). See [LICENSE.md](LICENSE.md).
-This repository is not affiliated with or endorsed by Unipds Educação.
