@@ -49,6 +49,6 @@ npm start
 1. Each product becomes a weighted feature vector: normalized price, normalized average age of its buyers, and one-hot category and color. Category weighs 0.4, color 0.3, price 0.2 and age 0.1.
 2. Each user becomes the average of the vectors of the products they bought. A user with no purchases is represented by their normalized age only.
 3. Every user and product pair is a training example, labeled 1 if the user bought the product and 0 if not.
-4. A dense neural network (128 → 64 → 32 → 1, sigmoid output) learns to predict that label with binary cross-entropy.
+4. A small dense neural network (one hidden layer of 32 units, then a sigmoid output) learns to predict that label with binary cross-entropy. A deeper 128 → 64 → 32 stack, about 14,000 weights for 50 training pairs, memorized them: almost every product a user had not bought scored below 0.01, and so did every purchase hidden from training to test it. The 32-unit network still gives products a user has not bought scores that rank them, up to about 0.8.
 5. To recommend, the model scores every product for the selected user and the list is sorted from highest to lowest score.
 

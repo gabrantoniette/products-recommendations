@@ -174,26 +174,12 @@ async function configureNeuralNetandTrain(trainData) {
     model.add(
         tf.layers.dense({
             inputShape: [trainData.inputDimention],
-            units: 128,
-            activation: 'relu'
-        })
-    )
-
-    model.add(
-        tf.layers.dense({
-            units: 64,
-            activation: 'relu'
-        })
-    )  
-
-    model.add(
-        tf.layers.dense({
             units: 32,
             activation: 'relu'
         })
     )
-    //above: input and the following added layers are incremental for a better learning process, 
-    //allowing the model to capture more complex patterns in the data.
+    //one hidden layer is enough for 50 training pairs: the former 128 -> 64 -> 32 stack
+    //had about 14,000 weights and memorized them, scoring held-out purchases close to 0.
 
     model.add(
         tf.layers.dense({
