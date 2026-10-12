@@ -51,7 +51,7 @@
                 "name": "Camiseta Estampada",
                 "category": "vestuário",
                 "price": 49.99,
-                "color": "vermelho"
+                "color": "branco"
             },
             {
                 "id": 5,
@@ -86,7 +86,7 @@
                 "name": "Tênis Esportivo",
                 "category": "calçados",
                 "price": 149.99,
-                "color": "branco"
+                "color": "vermelho"
             }
         ]
     },
@@ -107,7 +107,7 @@
                 "name": "Tênis Esportivo",
                 "category": "calçados",
                 "price": 149.99,
-                "color": "branco"
+                "color": "vermelho"
             },
             {
                 "id": 5,
