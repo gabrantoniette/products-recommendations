@@ -59,8 +59,9 @@ const userController = UserController.init({
 });
 
 
+// a customer with no purchases, with an id no customer in users.json has
 userController.renderUsers({
-    "id": 99,
+    "id": users.reduce((max, user) => Math.max(max, user.id), 0) + 1,
     "name": "Josézin da Silva",
     "age": 30,
     "purchases": []

@@ -21,7 +21,7 @@ export class WorkerController {
 
     setupCallbacks() {
         this.#events.onTrainModel((data) => {
-            this.#alreadyTrained = false;
+            // the worker keeps answering with the previous model while it retrains
             this.triggerTrain(data);
         });
         this.#events.onTrainingComplete(() => {

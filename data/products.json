@@ -68,5 +68,110 @@
         "category": "acessórios",
         "price": 89.99,
         "color": "marrom"
+    },
+    {
+        "id": 11,
+        "name": "Teclado Mecânico",
+        "category": "eletrônicos",
+        "price": 249.99,
+        "color": "preto"
+    },
+    {
+        "id": 12,
+        "name": "Mouse Sem Fio",
+        "category": "eletrônicos",
+        "price": 79.99,
+        "color": "cinza"
+    },
+    {
+        "id": 13,
+        "name": "Carregador Portátil",
+        "category": "eletrônicos",
+        "price": 99.99,
+        "color": "branco"
+    },
+    {
+        "id": 14,
+        "name": "Webcam Full HD",
+        "category": "eletrônicos",
+        "price": 189.99,
+        "color": "preto"
+    },
+    {
+        "id": 15,
+        "name": "Jaqueta Corta-Vento",
+        "category": "vestuário",
+        "price": 189.99,
+        "color": "verde"
+    },
+    {
+        "id": 16,
+        "name": "Moletom com Capuz",
+        "category": "vestuário",
+        "price": 139.99,
+        "color": "cinza"
+    },
+    {
+        "id": 17,
+        "name": "Camisa Social",
+        "category": "vestuário",
+        "price": 119.99,
+        "color": "azul"
+    },
+    {
+        "id": 18,
+        "name": "Shorts de Corrida",
+        "category": "vestuário",
+        "price": 59.99,
+        "color": "preto"
+    },
+    {
+        "id": 19,
+        "name": "Bota de Couro",
+        "category": "calçados",
+        "price": 279.99,
+        "color": "marrom"
+    },
+    {
+        "id": 20,
+        "name": "Chinelo",
+        "category": "calçados",
+        "price": 29.99,
+        "color": "azul"
+    },
+    {
+        "id": 21,
+        "name": "Sapatênis",
+        "category": "calçados",
+        "price": 169.99,
+        "color": "bege"
+    },
+    {
+        "id": 22,
+        "name": "Tênis de Corrida",
+        "category": "calçados",
+        "price": 229.99,
+        "color": "branco"
+    },
+    {
+        "id": 23,
+        "name": "Carteira de Couro",
+        "category": "acessórios",
+        "price": 89.99,
+        "color": "marrom"
+    },
+    {
+        "id": 24,
+        "name": "Cinto de Couro",
+        "category": "acessórios",
+        "price": 59.99,
+        "color": "preto"
+    },
+    {
+        "id": 25,
+        "name": "Relógio Analógico",
+        "category": "acessórios",
+        "price": 319.99,
+        "color": "prata"
     }
 ]

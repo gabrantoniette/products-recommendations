@@ -1,5 +1,7 @@
 import { View } from './View.js';
 
+const USERS_SHOWN = 100;
+
 export class UserView extends View {
     #userSelect = document.querySelector('#userSelect');
     #userAge = document.querySelector('#userAge');
@@ -29,7 +31,8 @@ export class UserView extends View {
     }
 
     renderUserOptions(users) {
-        const options = users.map(user => {
+        // only the first customers: 50,000 options make the select unusable
+        const options = users.slice(0, USERS_SHOWN).map(user => {
             return `<option value="${user.id}">${user.name}</option>`;
         }).join('');
 
