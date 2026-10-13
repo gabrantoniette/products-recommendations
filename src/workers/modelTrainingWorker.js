@@ -5,6 +5,7 @@ console.log('Model training worker initialized');
 
 let _globalCtx = {};
 let _model = null;
+let _training = false;
 
 const WEIGHTS = {
     age: 0.1,
@@ -13,14 +14,22 @@ const WEIGHTS = {
     color: 0.3
 }
 
+// About a million training pairs: a few passes with large batches is enough,
+// where the 50 pairs of the first dataset needed 100 passes of 32.
+const TRAINING = {
+    epochs: 10,
+    batchSize: 512
+}
+
 const normalize = (value, min, max) => (value - min) / (max - min);
 
 async function makeContext(products, users) {
     const ages = users.map(u => u.age);
     const price = products.map(p => p.price);
 
-    const minAge = Math.min(...ages);
-    const maxAge = Math.max(...ages);
+    // reduce instead of Math.min(...ages): spreading 50,000 ages as arguments can overflow the call stack
+    const minAge = ages.reduce((min, age) => Math.min(min, age), Infinity);
+    const maxAge = ages.reduce((max, age) => Math.max(max, age), -Infinity);
 
     const minPrice = Math.min(...price);
     const maxPrice = Math.max(...price);
@@ -140,29 +149,51 @@ function encodeUser(user, context) {
 }
 
 
-function createTrainingData(context) {
-    const inputs = []
-    const labels = []
-    context.users
-        .filter(u => u.purchases.length) //only consider users with purchases
-        .forEach(user => {
-            const userVector = encodeUser(user, context).dataSync()
-            context.products.forEach(product => {
-                const productVector = encodeProduct(product, context).dataSync()
+// The same average encodeUser takes for a user with purchases, built from the
+// product vectors encoded once in trainModel instead of new tensors per purchase.
+function averageOfPurchases(user, context) {
+    const dims = context.dimentions
+    const vectorByName = context.productVectorByName ??= Object.fromEntries(
+        context.productVectors.map(({ name, vector }) => [name, vector])
+    )
+    const average = new Float32Array(dims)
+    user.purchases.forEach(purchase => {
+        const vector = vectorByName[purchase.name]
+        for (let i = 0; i < dims; i++) average[i] += vector[i]
+    })
+    for (let i = 0; i < dims; i++) average[i] /= user.purchases.length
+    return average
+}
 
-                const label = user.purchases.some(
-                    purchase => purchase.name === product.name
-                ) ? 1:0
-                inputs.push([...userVector, ...productVector]) 
-                //combine user vector and product vector into a single input vector
-                labels.push(label)
-            })
+
+function createTrainingData(context) {
+    // 40,000 users with purchases times 25 products is about a million pairs, too
+    // many to create tensors for each one. Every product is encoded once (in
+    // trainModel), every user once, and the pairs are copied into one Float32Array.
+    const dims = context.dimentions
+    const inputDimention = dims * 2 //size of user vector + size of product vector
+    const users = context.users.filter(u => u.purchases.length) //only consider users with purchases
+    const rows = users.length * context.productVectors.length
+    const xs = new Float32Array(rows * inputDimention)
+    const ys = new Float32Array(rows)
+
+    let row = 0
+    users.forEach(user => {
+        const userVector = averageOfPurchases(user, context)
+        const bought = new Set(user.purchases.map(purchase => purchase.name))
+        context.productVectors.forEach(({ name, vector }) => {
+            //combine user vector and product vector into a single input vector
+            xs.set(userVector, row * inputDimention)
+            xs.set(vector, row * inputDimention + dims)
+            ys[row] = bought.has(name) ? 1 : 0
+            row++
         })
-    
+    })
+
     return {
-        xs: tf.tensor2d(inputs),
-        ys: tf.tensor2d(labels, [labels.length, 1]),
-        inputDimention: context.dimentions * 2 //size of user vector + size of product vector
+        xs: tf.tensor2d(xs, [rows, inputDimention]),
+        ys: tf.tensor2d(ys, [rows, 1]),
+        inputDimention
     }
 }
 
@@ -197,8 +228,8 @@ async function configureNeuralNetandTrain(trainData) {
     })
     
     await model.fit(trainData.xs, trainData.ys, {
-        epochs: 100,
-        batchSize: 32,
+        epochs: TRAINING.epochs,
+        batchSize: TRAINING.batchSize,
         shuffle: true,
         callbacks: {
             onEpochEnd: (epoch, logs) => {
@@ -218,39 +249,58 @@ async function configureNeuralNetandTrain(trainData) {
 
 
 async function trainModel({ users }) {
-    console.log('Training model with users:', users)
+    // training now takes minutes: a second request while one runs is ignored
+    if (_training) return;
+    _training = true;
+    console.log('Training model with users:', users.length)
 
     postMessage({ type: workerEvents.progressUpdate, progress: { progress: 1 } });
 
-    const products = await (await fetch('/data/products.json')).json()
+    try {
+        const products = await (await fetch('/data/products.json')).json()
 
-    const context = await makeContext(products, users)
-    context.productVectors = products.map(product => {
-        return {
-            name: product.name,
-            meta: {...product},
-            vector: encodeProduct(product, context).dataSync()
+        const context = await makeContext(products, users)
+        context.productVectors = products.map(product => {
+            return {
+                name: product.name,
+                meta: {...product},
+                vector: tf.tidy(() => encodeProduct(product, context).dataSync())
+            }
+        })
+
+        const known = new Set(products.map(product => product.name))
+        const unknown = users.flatMap(user => user.purchases).find(purchase => !known.has(purchase.name))
+        if (unknown) throw new Error(`purchase of a product not in products.json: ${unknown.name}`)
+
+        const trainData = createTrainingData(context)
+        const model = await configureNeuralNetandTrain(trainData)
+        tf.dispose([trainData.xs, trainData.ys])
+
+        //the previous model keeps answering recommendations until the new one is ready
+        if (_model) {
+            _model.optimizer.dispose()
+            _model.dispose()
         }
-    })
-    
-    _globalCtx = context;
-    
-    const trainData = createTrainingData(context)
-    _model = await configureNeuralNetandTrain(trainData)
+        _model = model
+        _globalCtx = context;
 
-    
-    postMessage({ type: workerEvents.progressUpdate, progress: { progress: 100 } });
-    postMessage({ type: workerEvents.trainingComplete });
-
-
+        postMessage({ type: workerEvents.trainingComplete });
+    } catch (error) {
+        console.error('Training failed:', error)
+    } finally {
+        _training = false;
+        postMessage({ type: workerEvents.progressUpdate, progress: { progress: 100 } });
+    }
 }
 
 function recommend({ user }) {
-    
+
     if(!_model) return;
     const context = _globalCtx;
 
-    const userVector = encodeUser(user, _globalCtx).dataSync()
+    const userVector = user.purchases.length
+        ? averageOfPurchases(user, context)
+        : tf.tidy(() => encodeUser(user, context).dataSync())
     const inputs = context.productVectors.map(({vector}) => {
         return [...userVector, ...vector]
     })
@@ -259,6 +309,7 @@ function recommend({ user }) {
     const predictions = _model.predict(inputTensor)
 
     const scores = predictions.dataSync()
+    tf.dispose([inputTensor, predictions])
     
     const recommendations = context.productVectors.map((product, index) => {
         return {

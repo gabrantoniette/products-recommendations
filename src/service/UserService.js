@@ -1,12 +1,20 @@
 export class UserService {
-    #storageKey = 'ew-academy-users';
+    // Kept in memory, not in sessionStorage: 50,000 customers are far over its
+    // ~5 MB limit, and the list was reset from users.json on every page load anyway.
+    #users = [];
+    #defaultUsers;
 
     async getDefaultUsers() {
-        const response = await fetch('./data/users.json');
-        const users = await response.json();
-        this.#setStorage(users);
+        // fetched once: two parts of the app ask for it, and the file is large
+        // the list is only seeded once, so a later call cannot drop a user added in the meantime
+        this.#defaultUsers ??= fetch('./data/users.json')
+            .then(response => response.json())
+            .then(users => {
+                this.#setStorage(users);
+                return users;
+            });
 
-        return users;
+        return this.#defaultUsers;
     }
 
     async getUsers() {
@@ -35,12 +43,11 @@ export class UserService {
     }
 
     #getStorage() {
-        const data = sessionStorage.getItem(this.#storageKey);
-        return data ? JSON.parse(data) : [];
+        return this.#users;
     }
 
     #setStorage(data) {
-        sessionStorage.setItem(this.#storageKey, JSON.stringify(data));
+        this.#users = data;
     }
 
 

@@ -1,5 +1,7 @@
 import { View } from './View.js';
 
+const USERS_SHOWN = 100;
+
 export class ModelView extends View {
     #trainModelBtn = document.querySelector('#trainModelBtn');
     #purchasesArrow = document.querySelector('#purchasesArrow');
@@ -60,7 +62,10 @@ export class ModelView extends View {
     }
 
     renderAllUsersPurchases(users) {
-        const html = users.map(user => {
+        // only the first customers: rendering all 50,000 freezes the page
+        const shown = users.slice(0, USERS_SHOWN);
+        const note = `<p class="text-muted">Showing ${shown.length} of ${users.length} customers.</p>`;
+        const html = note + shown.map(user => {
             const purchasesHtml = user.purchases.map(purchase => {
                 return `<span class="badge bg-light text-dark me-1 mb-1">${purchase.name}</span>`;
             }).join('');
