@@ -166,6 +166,16 @@ function averageOfPurchases(user, context) {
 }
 
 
+// The user vector without one product: the average of the other purchases, or
+// the age-only vector a user with no purchases gets when it was the only one.
+function tasteWithout(user, productName, context) {
+    const others = { ...user, purchases: user.purchases.filter(purchase => purchase.name !== productName) }
+    return others.purchases.length
+        ? averageOfPurchases(others, context)
+        : tf.tidy(() => encodeUser(others, context).dataSync())
+}
+
+
 function createTrainingData(context) {
     // 40,000 users with purchases times 25 products is about a million pairs, too
     // many to create tensors for each one. Every product is encoded once (in
@@ -182,8 +192,12 @@ function createTrainingData(context) {
         const userVector = averageOfPurchases(user, context)
         const bought = new Set(user.purchases.map(purchase => purchase.name))
         context.productVectors.forEach(({ name, vector }) => {
+            // A bought product is learned from the user's OTHER purchases. With the full
+            // average, the product itself is inside the user vector, and the model learns
+            // "already in the history" instead of the taste that led to the purchase.
+            const rowVector = bought.has(name) ? tasteWithout(user, name, context) : userVector
             //combine user vector and product vector into a single input vector
-            xs.set(userVector, row * inputDimention)
+            xs.set(rowVector, row * inputDimention)
             xs.set(vector, row * inputDimention + dims)
             ys[row] = bought.has(name) ? 1 : 0
             row++
@@ -209,8 +223,9 @@ async function configureNeuralNetandTrain(trainData) {
             activation: 'relu'
         })
     )
-    //one hidden layer is enough for 50 training pairs: the former 128 -> 64 -> 32 stack
-    //had about 14,000 weights and memorized them, scoring held-out purchases close to 0.
+    //one hidden layer of 32: on hidden purchases, the former 128 -> 64 -> 32 stack (14,337
+    //weights against 1,025) ranked about 1 point better in the top 5 and trained slower.
+    //See "How It Was Measured" in the README.
 
     model.add(
         tf.layers.dense({
@@ -319,7 +334,12 @@ function recommend({ user }) {
         }
     })
 
-    const sortedProducts = recommendations.sort((a, b) => b.score - a.score)
+    // what the user already bought goes to the end: the model was trained to score
+    // products missing from the history, so their scores say nothing
+    const owned = new Set(user.purchases.map(purchase => purchase.name))
+    const sortedProducts = recommendations.sort(
+        (a, b) => owned.has(a.name) - owned.has(b.name) || b.score - a.score
+    )
 
     postMessage({ 
         type: workerEvents.recommend, 
