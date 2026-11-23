@@ -81,3 +81,6 @@ One purchase was hidden from 5,000 customers with two or more purchases, the mod
 
 What the model sees in training mattered far more than its size. The 32-unit network has 1,025 weights against 14,337 and trains faster, for about 1 point less in the top 5. On the first dataset of 5 customers and 50 pairs, the 128 → 64 → 32 stack memorized the training pairs and scored every hidden purchase close to 0.
 
+## License
+
+Distributed under the [CC BY-NC-ND 4.0](LICENSE) license, as stated in the `LICENSE` file: the repository contains study material from a postgraduate course.
