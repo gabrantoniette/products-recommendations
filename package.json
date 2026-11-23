@@ -17,7 +17,7 @@
         "javascript"
     ],
     "author": "Gabriel Antoniette",
-    "license": "SEE LICENSE IN LICENSE.md",
+    "license": "MIT",
     "devDependencies": {
         "browser-sync": "^3.0.4"
     }

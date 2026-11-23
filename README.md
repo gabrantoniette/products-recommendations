@@ -1,5 +1,7 @@
 # E-commerce Recommendation System
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/gabrantoniette/gabrantoniette/main/assets/generated/languages/products-recommendations-dark.svg">
   <img src="https://raw.githubusercontent.com/gabrantoniette/gabrantoniette/main/assets/generated/languages/products-recommendations-light.svg" alt="Languages in products-recommendations, by share of code">
@@ -83,4 +85,4 @@ What the model sees in training mattered far more than its size. The 32-unit net
 
 ## License
 
-Distributed under the [CC BY-NC-ND 4.0](LICENSE) license, as stated in the `LICENSE` file: the repository contains study material from a postgraduate course.
+[MIT](LICENSE)
